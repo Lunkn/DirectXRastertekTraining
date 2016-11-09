@@ -1,7 +1,8 @@
-﻿  graphicsclass.cpp
+﻿  systemclass.cpp
+  graphicsclass.cpp
+  d3dclass.cpp
   Generating Code...
   Compiling...
-  systemclass.cpp
   main.cpp
   Generating Code...
   Engine.vcxproj -> C:\Users\Viktor\Documents\GitHub\DirectXRastertekTraining\Engine\x64\Debug\Engine.exe
