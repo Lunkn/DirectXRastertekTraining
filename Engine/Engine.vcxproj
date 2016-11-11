@@ -142,17 +142,49 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cameraclass.cpp" />
+    <ClCompile Include="colorshaderclass.cpp" />
     <ClCompile Include="d3dclass.cpp" />
     <ClCompile Include="graphicsclass.cpp" />
     <ClCompile Include="inputclass.cpp" />
+    <ClCompile Include="lightclass.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="modelclass.cpp" />
+    <ClCompile Include="shaderclass.cpp" />
     <ClCompile Include="systemclass.cpp" />
+    <ClCompile Include="textureclass.cpp" />
+    <ClCompile Include="textureshaderclass.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="camerclass.h" />
+    <ClInclude Include="colorshaderclass.h" />
     <ClInclude Include="d3dclass.h" />
     <ClInclude Include="graphicsclass.h" />
     <ClInclude Include="inputclass.h" />
+    <ClInclude Include="lightclass.h" />
+    <ClInclude Include="modelclass.h" />
+    <ClInclude Include="shaderclass.h" />
     <ClInclude Include="systemclass.h" />
+    <ClInclude Include="textureclass.h" />
+    <ClInclude Include="textureshaderclass.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="color.ps" />
+    <None Include="color.vs" />
+    <None Include="light.ps" />
+    <None Include="light.vs" />
+    <None Include="texture.vs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="texture.ps">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\stone01.tga" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="data\seafloor.dds" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

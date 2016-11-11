@@ -1,9 +1,3 @@
-﻿  systemclass.cpp
-  graphicsclass.cpp
-  d3dclass.cpp
-  Generating Code...
-  Compiling...
-  main.cpp
-  Generating Code...
+﻿  graphicsclass.cpp
   Engine.vcxproj -> C:\Users\Viktor\Documents\GitHub\DirectXRastertekTraining\Engine\x64\Debug\Engine.exe
   Engine.vcxproj -> C:\Users\Viktor\Documents\GitHub\DirectXRastertekTraining\Engine\x64\Debug\Engine.pdb (Full PDB)
