@@ -6,6 +6,8 @@ GraphicsClass::GraphicsClass(){
 	m_Model = 0;
 	m_Shader = 0;
 	m_Light = 0;
+	m_Bitmap = 0;
+	m_Text = 0;
 }
 
 GraphicsClass::GraphicsClass(const GraphicsClass& other)
@@ -18,6 +20,7 @@ GraphicsClass::~GraphicsClass()
 
 bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd){
 	bool result;
+	XMMATRIX baseViewMatrix;
 
 	m_Direct3D = new D3DClass;
 	if (!m_Direct3D) {
@@ -38,7 +41,26 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd){
 	}
 
 	// Set the initial position of the camera.
-	m_Camera->SetPosition(0.0f, 0.0f, -5.0f);
+	m_Camera->SetPosition(0.0f, 0.0f, -10.0f);
+
+	// Initialize a base view matrix with the camera for 2D user interface rendering
+	m_Camera->Render();
+	m_Camera->GetViewMatrix(baseViewMatrix);
+
+	// Create the text object.
+		m_Text = new TextClass;
+	if (!m_Text)
+	{
+		return false;
+	}
+
+	// Initialize the text object.
+	result = m_Text->Initialize(m_Direct3D->GetDevice(), m_Direct3D->GetDeviceContext(), hwnd, screenWidth, screenHeight, baseViewMatrix);
+	if (!result)
+	{
+		MessageBox(hwnd, L"Could not initialize the text object.", L"Error", MB_OK);
+		return false;
+	}
 
 	// Create the model object.
 	m_Model = new ModelClass;
@@ -79,13 +101,47 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd){
 	}
 	
 	// Initialize the light object.
+	m_Light->SetAmbientColor(0.15f, 0.15f, 0.15f, 1.0f);
 	m_Light->SetDiffuseColor(1.0f, 1.0f, 1.0f, 1.0f);
 	m_Light->SetDirection(0.0f, 0.0f, 1.0f);
+	m_Light->SetSpecularColor(1.0f, 1.0f, 1.0f, 1.0f);
+	m_Light->SetSpecularPower(32.0f);
+
+	// Create the bitmap object.
+	m_Bitmap = new BitmapClass;
+	if (!m_Bitmap)
+	{
+		return false;
+	}
+
+	// Initialize the bitmap object.
+	result = m_Bitmap->Initialize(m_Direct3D->GetDevice(), m_Direct3D->GetDeviceContext(), screenWidth, screenHeight, "../Engine/data/stone01.tga", 256, 256);
+	if (!result)
+	{
+		MessageBox(hwnd, L"Could not initialize the bitmap object.", L"Error", MB_OK);
+		return false;
+	}
 
 	return true;
 }
 
 void GraphicsClass::Shutdown(){
+	// Release the text object.
+	if (m_Text)
+	{
+		m_Text->Shutdown();
+		delete m_Text;
+		m_Text = 0;
+	}
+
+	// Release the bitmap object.
+	if (m_Bitmap)
+	{
+		m_Bitmap->Shutdown();
+		delete m_Bitmap;
+		m_Bitmap = 0;
+	}
+	
 	// Release the light object.
 	if (m_Light)
 	{
@@ -175,7 +231,7 @@ bool GraphicsClass::Render(){
 }
 
 bool GraphicsClass::RenderWithLight(float rotation) {
-	XMMATRIX worldMatrix, viewMatrix, projectionMatrix, rotationMatrix;
+	XMMATRIX worldMatrix, worldMatrixStill, viewMatrix, projectionMatrix, rotationMatrix, orthoMatrix;
 	bool result;
 
 	// Clear the buffers to begin the scene
@@ -186,11 +242,12 @@ bool GraphicsClass::RenderWithLight(float rotation) {
 
 	// Get the world, view and projection matrices from the camera and d3d objects
 	m_Direct3D->GetWorldMatrix(worldMatrix);
+	m_Direct3D->GetWorldMatrix(worldMatrixStill);
 	m_Camera->GetViewMatrix(viewMatrix);
 	m_Direct3D->GetProjectionMatrix(projectionMatrix);
+	m_Direct3D->GetOrthoMatrix(orthoMatrix);
 
 	// Rotate the world matrix by the rotation value so that the triangle will spin
-	
 	rotationMatrix = XMMatrixRotationY(rotation);
 	worldMatrix = XMMatrixMultiply(worldMatrix, rotationMatrix);
 
@@ -198,12 +255,48 @@ bool GraphicsClass::RenderWithLight(float rotation) {
 	m_Model->Render(m_Direct3D->GetDeviceContext());
 
 	// Render the model usiong the color shader
-	result = m_Shader->RenderWithLight(m_Direct3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix, m_Model->GetTexture(), m_Light->GetDirection(), m_Light->GetDiffuseColor());
+	result = m_Shader->RenderWithLight(m_Direct3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix, m_Model->GetTexture(), m_Light->GetDirection(), m_Light->GetAmbientColor(), m_Light->GetDiffuseColor(), m_Camera->GetPosition(),m_Light->GetSpecularColor(), m_Light->GetSpecularPower());
 	if (!result) {
 		return false;
 	}
 
+	// Turn off the Z Buffer to begin all 2D rendering
+	m_Direct3D->TurnZBufferOff();
+
+	// Turn on the alpha blending before rendering the text.
+	m_Direct3D->TurnOnAlphaBlending();
+	
+	/*
+	// Put the bitmap vertex and index buffers on the graphics pipeline to prepare them for drawing.
+	result = m_Bitmap->Render(m_Direct3D->GetDeviceContext(), 100, 100);
+	if (!result)
+	{
+		return false;
+	}
+
+	// Render the bitmap with the texture shader.
+	result = m_Shader->Render(m_Direct3D->GetDeviceContext(), m_Bitmap->GetIndexCount(), worldMatrixStill, viewMatrix, orthoMatrix, m_Bitmap->GetTexture());
+	if (!result)
+	{
+		return false;
+	}
+	*/
+
+	// Render the text strings.
+	result = m_Text->Render(m_Direct3D->GetDeviceContext(), worldMatrixStill, orthoMatrix);
+	if (!result)
+	{
+		return false;
+	}
+
+	// Turn off alpha blending after rendering the text.
+	m_Direct3D->TurnOffAlphaBlending();
+
+	// Turn the Z buffer back on now that all 2D render has completed
+	m_Direct3D->TurnZBufferOn();
+
 	// Present the rendered scene to the screen.
 	m_Direct3D->EndScene();
+
 	return true;
 }
