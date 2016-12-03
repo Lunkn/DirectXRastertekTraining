@@ -25,6 +25,7 @@ public:
 	bool SetMousePosition(int, int, ID3D11DeviceContext*);
 	bool SetFps(int, ID3D11DeviceContext*);
 	bool SetCpu(int, ID3D11DeviceContext*);
+	bool SetRenderCount(int count, ID3D11DeviceContext* deviceContext);
 
 private:
 	bool InitializeSentence(SentenceType**, int, ID3D11Device*);

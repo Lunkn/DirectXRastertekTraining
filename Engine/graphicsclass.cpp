@@ -8,6 +8,8 @@ GraphicsClass::GraphicsClass(){
 	m_Light = 0;
 	m_Bitmap = 0;
 	m_Text = 0;
+	m_ModelList = 0;
+	m_Frustum = 0;
 }
 
 GraphicsClass::GraphicsClass(const GraphicsClass& other)
@@ -77,6 +79,14 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd){
 		return false;
 	}
 
+	// Initialize the model object.
+	result = m_Model->Initialize(m_Direct3D->GetDevice(), m_Direct3D->GetDeviceContext(), "../Engine/data/seafloor.tga", "../Engine/data/sphere.txt");
+	if (!result)
+	{
+		MessageBox(hwnd, L"Could not initialize the model object.", L"Error", MB_OK);
+		return false;
+	}
+
 
 	// Create the texture shader object.
 	m_Shader = new ShaderClass;
@@ -122,10 +132,47 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd){
 		return false;
 	}
 
+	// Create the model list object.
+	m_ModelList = new ModelListClass;
+	if (!m_ModelList)
+	{
+		return false;
+	}
+
+	// Initialize the model list object.
+	result = m_ModelList->Initialize(25);
+	if (!result)
+	{
+		MessageBox(hwnd, L"Could not initialize the model list object.", L"Error", MB_OK);
+		return false;
+	}
+
+	// Create the frustum object.
+	m_Frustum = new FrustumClass;
+	if (!m_Frustum)
+	{
+		return false;
+	}
+
 	return true;
 }
 
 void GraphicsClass::Shutdown(){
+	// Release the frustum object.
+	if (m_Frustum)
+	{
+		delete m_Frustum;
+		m_Frustum = 0;
+	}
+
+	// Release the model list object.
+	if (m_ModelList)
+	{
+		m_ModelList->Shutdown();
+		delete m_ModelList;
+		m_ModelList = 0;
+	}
+	
 	// Release the text object.
 	if (m_Text)
 	{
@@ -182,7 +229,7 @@ void GraphicsClass::Shutdown(){
 	return;
 }
 
-bool GraphicsClass::Frame(int fps, int cpu, float frameTime, int mouseX, int mouseY){
+bool GraphicsClass::Frame(int fps, int cpu, float frameTime, int mouseX, int mouseY, float rotationY){
 	bool result;
 	static float rotation = 0.0f;
 	
@@ -216,12 +263,9 @@ bool GraphicsClass::Frame(int fps, int cpu, float frameTime, int mouseX, int mou
 		rotation -= 360.0f;
 	}
 
-	// Render the graphics scene.
-	result = RenderWithLight(rotation);
-	if (!result)
-	{
-		return false;
-	}
+	// Set the rotation of the camera.
+	m_Camera->SetRotation(0.0f, rotationY, 0.0f);
+	
 	return true;
 }
 
@@ -256,7 +300,10 @@ bool GraphicsClass::Render(){
 
 bool GraphicsClass::RenderWithLight(float rotation) {
 	XMMATRIX worldMatrix, worldMatrixStill, viewMatrix, projectionMatrix, rotationMatrix, orthoMatrix;
-	bool result;
+	int modelCount, renderCount, index;
+	float positionX, positionY, positionZ, radius;
+	XMFLOAT4 color;
+	bool renderModel, result;
 
 	// Clear the buffers to begin the scene
 	m_Direct3D->BeginScene(0.0f, 0.0f, 0.0f, 1.0f);
@@ -275,12 +322,55 @@ bool GraphicsClass::RenderWithLight(float rotation) {
 	rotationMatrix = XMMatrixRotationY(rotation);
 	worldMatrix = XMMatrixMultiply(worldMatrix, rotationMatrix);
 
-	// Put the model vertex and index buffers on the graphics pipline to prepare them for drawing
-	m_Model->Render(m_Direct3D->GetDeviceContext());
+	// Construct the frustum.
+	m_Frustum->ConstructFrustum(SCREEN_DEPTH, projectionMatrix, viewMatrix);
 
-	// Render the model usiong the color shader
-	result = m_Shader->RenderWithLight(m_Direct3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix, m_Model->GetTexture(), m_Light->GetDirection(), m_Light->GetAmbientColor(), m_Light->GetDiffuseColor(), m_Camera->GetPosition(),m_Light->GetSpecularColor(), m_Light->GetSpecularPower());
-	if (!result) {
+	// Get the number of models that will be rendered.
+	modelCount = m_ModelList->GetModelCount();
+
+	// Initialize the count of models that have been rendered.
+	renderCount = 0;
+	
+	// Go through all the models and render them only if they can be seen by the camera view.
+	for (index = 0; index<modelCount; index++)
+	{
+		// Get the position and color of the sphere model at this index.
+		m_ModelList->GetData(index, positionX, positionY, positionZ, color);
+
+		// Set the radius of the sphere to 1.0 since this is already known.
+		radius = 1.0f;
+			
+		// Check if the sphere model is in the view frustum.
+		renderModel = m_Frustum->CheckSphere(positionX, positionY, positionZ, radius);
+
+		// If it can be seen then render it, if not skip this model and check the next sphere.
+		if (renderModel)
+		{
+			// Move the model to the location it should be rendered at.
+			worldMatrix = XMMatrixTranslation(positionX, positionY, positionZ);
+
+			// Put the model vertex and index buffers on the graphics pipeline to prepare them for drawing.
+			m_Model->Render(m_Direct3D->GetDeviceContext());
+			
+			// Render the model usiong the color shader
+			result = m_Shader->RenderWithLight(m_Direct3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix,
+				m_Model->GetTexture(), m_Light->GetDirection(), color, m_Light->GetDiffuseColor(), m_Camera->GetPosition(), m_Light->GetSpecularColor(), m_Light->GetSpecularPower());
+			if (!result) {
+				return false;
+			}
+
+			// Reset to the original world matrix.
+			m_Direct3D->GetWorldMatrix(worldMatrix);
+
+			// Since this model was rendered then increase the count for this frame.
+			renderCount++;
+		}
+	}
+
+	// Set the number of models that was actually rendered this frame.
+	result = m_Text->SetRenderCount(renderCount, m_Direct3D->GetDeviceContext());
+	if (!result)
+	{
 		return false;
 	}
 
@@ -289,22 +379,6 @@ bool GraphicsClass::RenderWithLight(float rotation) {
 
 	// Turn on the alpha blending before rendering the text.
 	m_Direct3D->TurnOnAlphaBlending();
-	
-	/*
-	// Put the bitmap vertex and index buffers on the graphics pipeline to prepare them for drawing.
-	result = m_Bitmap->Render(m_Direct3D->GetDeviceContext(), 100, 100);
-	if (!result)
-	{
-		return false;
-	}
-
-	// Render the bitmap with the texture shader.
-	result = m_Shader->Render(m_Direct3D->GetDeviceContext(), m_Bitmap->GetIndexCount(), worldMatrixStill, viewMatrix, orthoMatrix, m_Bitmap->GetTexture());
-	if (!result)
-	{
-		return false;
-	}
-	*/
 
 	// Render the text strings.
 	result = m_Text->Render(m_Direct3D->GetDeviceContext(), worldMatrixStill, orthoMatrix);
