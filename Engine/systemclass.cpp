@@ -22,7 +22,11 @@ bool SystemClass::Initialize() {
 		return false;
 	}
 
-	m_Input->Initialize();
+	result = m_Input->Initialize(m_hinstance, m_hwnd, screenWidth, screenHeight);
+	if (!result) {
+		MessageBox(m_hwnd, L"Could not initialize the input object.", L"Error", MB_OK);
+		return false;
+	}
 
 	m_Graphics = new GraphicsClass;
 	if (!m_Graphics) {
@@ -44,7 +48,10 @@ void SystemClass::Shutdown() {
 		m_Graphics = 0;
 	}
 
-	if (m_Input) {
+	// Release the input object.
+	if (m_Input)
+	{
+		m_Input->Shutdown();
 		delete m_Input;
 		m_Input = 0;
 	}
@@ -58,23 +65,33 @@ void SystemClass::Run() {
 	MSG msg;
 	bool done, result;
 
+	// Initialize the message structure.
 	ZeroMemory(&msg, sizeof(MSG));
 
+	// Loop until there is a quit message from the window or the user.
 	done = false;
 	while (!done){
+		// Handle the windows messages.
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-
+		// If windows signals to end the application then exit out.
 		if (msg.message == WM_QUIT) {
 			done = true;
 		}
 		else {
+			// Otherwise do the frame processing.  If frame processing fails then exit.
 			result = Frame();
 			if (!result) {
 				done = true;
 			}
+		}
+
+		// Check if the user pressed escape and wants to quit.
+		if (m_Input->IsEscapePressed() == true)
+		{
+			done = true;
 		}
 	}
 
@@ -84,32 +101,29 @@ void SystemClass::Run() {
 bool SystemClass::Frame()
 {
 	bool result;
+	int mouseX, mouseY;
 
-	if (m_Input->IsKeyDown(VK_ESCAPE)) {
+	// Do the input frame processing.
+	result = m_Input->Frame();
+	if (!result)
+	{
+		return false;
+	}
+	// Get the location of the mouse from the input object,
+	m_Input->GetMouseLocation(mouseX, mouseY);
+
+	// Do the frame processing for the graphics object.
+	result = m_Graphics->Frame(mouseX, mouseY);
+	if (!result)
+	{
 		return false;
 	}
 
-	result = m_Graphics->Frame();
-	if (!result) {
-		return false;
-	}
 	return true;
 }
 
 LRESULT CALLBACK SystemClass::MessageHandler(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam) {
-	switch (umsg)
-	{
-	case WM_KEYDOWN: {
-		m_Input->KeyDown((unsigned int)wparam);
-		return 0;
-	}
-	case WM_KEYUP: {
-		m_Input->KeyUp((unsigned int)wparam);
-		return 0;
-	}
-	default:
-		return DefWindowProc(hwnd, umsg, wparam, lparam);
-	}
+	return DefWindowProc(hwnd, umsg, wparam, lparam);
 }
 
 void SystemClass::InitializeWindows(int & screenWidth, int & screenHeight)

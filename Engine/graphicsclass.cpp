@@ -182,7 +182,7 @@ void GraphicsClass::Shutdown(){
 	return;
 }
 
-bool GraphicsClass::Frame(){
+bool GraphicsClass::Frame(int mouseX, int mouseY){
 	bool result;
 	static float rotation = 0.0f;
 
@@ -191,6 +191,17 @@ bool GraphicsClass::Frame(){
 	if (rotation > 360.0f) {
 		rotation -= 360.0f;
 	}
+
+	// Set the location of the mouse.
+	result = m_Text->SetMousePosition(mouseX, mouseY, m_Direct3D->GetDeviceContext());
+	if (!result)
+	{
+		return false;
+	}
+
+	// Set the position of the camera.
+	m_Camera->SetPosition(0.0f, 0.0f, -10.0f);
+	
 
 	// Render the graphics scene.
 	result = RenderWithLight(rotation);
