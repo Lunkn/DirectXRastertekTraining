@@ -21,7 +21,7 @@ public:
 
 	bool Initialize(int, int, HWND);
 	void Shutdown();
-	bool Frame(int, int);
+	bool Frame(int fps, int cpu, float frameTime, int screenWidth, int screenHeight);
 	bool Render();
 	bool RenderWithLight(float);
 

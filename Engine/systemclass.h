@@ -2,9 +2,11 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include <Windows.h>
-
 #include "inputclass.h"
 #include "graphicsclass.h"
+#include "fpsclass.h"
+#include "cpuclass.h"
+#include "timerclass.h"
 
 class SystemClass {
 public:
@@ -29,7 +31,9 @@ private:
 	HWND m_hwnd;
 	InputClass* m_Input;
 	GraphicsClass* m_Graphics;
-
+	FpsClass* m_Fps;
+	CpuClass* m_Cpu;
+	TimerClass* m_Timer;
 };
 
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
